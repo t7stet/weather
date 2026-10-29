@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <link rel="icon" href="favicon.ico">
-<title>Погода</title>
+<title>Weather</title>
 <meta name="theme-color" content="#1976D2">
 <link rel="manifest" href="manifest.json">
 <meta name="apple-mobile-web-app-capable" content="yes">
@@ -27,6 +27,7 @@
     --border: #9e9e9e;
     --divider: #eeeeee;
     --hover: rgba(25,118,210,.08);
+    --track-on: rgba(25,118,210,.5);
     --error: #D32F2F;
     --error-bg: #FDECEA;
     --shadow: 0 2px 2px rgba(0,0,0,.14), 0 3px 1px -2px rgba(0,0,0,.12), 0 1px 5px rgba(0,0,0,.2);
@@ -180,7 +181,7 @@
   .switch input { position: absolute; z-index: 1; width: 100%; height: 100%; margin: 0; opacity: 0; cursor: pointer; }
   .switch .track { position: absolute; left: 0; right: 0; top: 3px; bottom: 3px; border-radius: 7px; background: var(--border); transition: background .2s; }
   .switch .thumb { position: absolute; top: 0; left: 0; width: 20px; height: 20px; border-radius: 50%; background: #fafafa; box-shadow: 0 1px 3px rgba(0,0,0,.4); transition: transform .2s, background .2s; }
-  .switch input:checked ~ .track { background: rgba(25,118,210,.5); }
+  .switch input:checked ~ .track { background: var(--track-on); }
   .switch input:checked ~ .thumb { transform: translateX(20px); background: var(--primary); }
   .switch input:focus-visible ~ .thumb { outline: 2px solid var(--accent); outline-offset: 2px; }
   .now-icon .material-icons { font-size: 64px; color: var(--accent); }
@@ -201,11 +202,39 @@
   .hist-bar { position: absolute; left: 10%; right: 10%; min-height: 3px; border-radius: 2px; }
   .hist-legend { display: flex; justify-content: space-between; margin-top: 8px; font-size: 12px; color: var(--text-2); }
   .hist-sum { margin-top: 8px; font-size: 14px; }
+  .updated { margin-top: 8px; font-size: 12px; }
+  .sec-title { margin: 24px 0 0; padding-top: 16px; border-top: 1px solid var(--divider); font-size: 12px; font-weight: 500; letter-spacing: .08em; text-transform: uppercase; color: var(--text-2); }
+  .swatches { display: flex; flex-wrap: wrap; gap: 12px; margin: 16px 0 0; }
+  .swatch {
+    display: inline-flex; align-items: center; justify-content: center; width: 36px; height: 36px; padding: 0;
+    border: 2px solid transparent; border-radius: 50%; background: var(--sw); color: #fff; cursor: pointer;
+    box-shadow: var(--shadow); transition: box-shadow .2s, border-color .2s;
+  }
+  .swatch .material-icons { font-size: 20px; opacity: 0; transition: opacity .2s; }
+  .swatch[aria-checked="true"] { border-color: var(--surface); box-shadow: 0 0 0 2px var(--sw); }
+  .swatch[aria-checked="true"] .material-icons { opacity: 1; }
+  .swatch:focus-visible { outline: 2px solid var(--text); outline-offset: 3px; }
+  .welcome {
+    position: fixed; inset: 0; z-index: 100; display: flex; overflow-y: auto; background: var(--bg);
+    padding: calc(16px + env(safe-area-inset-top, 0px)) 16px calc(16px + env(safe-area-inset-bottom, 0px));
+  }
+  .welcome-card { width: 100%; max-width: 440px; margin: auto; padding: 32px 24px 24px; }
+  .welcome .logo { display: block; margin: 0 auto 8px; font-size: 64px; color: var(--accent); text-align: center; }
+  .welcome h2 { margin: 0 0 8px; font-size: 24px; text-align: center; }
+  .welcome p { margin: 0 0 8px; color: var(--text-2); text-align: center; }
+  .welcome .actions { margin-top: 24px; }
+  .welcome .btn { width: 100%; height: 44px; justify-content: center; }
 </style>
 </head>
 <body>
 <script>
-  try { if (localStorage.getItem('theme') === 'dark') document.body.classList.add('dark-theme'); } catch (e) {}
+  (function () {
+    try {
+      var th = localStorage.getItem('theme');
+      var dark = th === 'dark' || (th !== 'light' && window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches);
+      if (dark) document.body.classList.add('dark-theme');
+    } catch (e) {}
+  })();
 </script>
 <div class="container">
   <header class="top">
@@ -249,6 +278,7 @@
         </div>
         <div class="desc" id="nowDesc"></div>
         <div class="muted" id="nowFeels"></div>
+        <div class="muted updated" id="updated" hidden></div>
       </div>
       <div class="card">
         <h2 data-i18n="forecast"></h2>
@@ -290,19 +320,40 @@
     </div>
     <div class="row">
       <label for="langSelect" data-i18n="language"></label>
-      <select id="langSelect"><option value="ru">Русский</option><option value="en">English</option></select>
+      <select id="langSelect"><option value="en">English</option><option value="ru">Русский</option></select>
     </div>
     <div class="row">
       <label for="searchLangSelect" data-i18n="search_lang"></label>
       <select id="searchLangSelect">
-        <option value="ru">Русский (ru)</option><option value="en">English (en)</option><option value="de">Deutsch (de)</option>
+        <option value="en">English (en)</option><option value="ru">Русский (ru)</option><option value="de">Deutsch (de)</option>
         <option value="fr">Français (fr)</option><option value="es">Español (es)</option><option value="it">Italiano (it)</option>
         <option value="pt">Português (pt)</option><option value="tr">Türkçe (tr)</option><option value="zh">中文 (zh)</option><option value="ja">日本語 (ja)</option>
       </select>
     </div>
     <div class="row"><span data-i18n="show_hourly"></span><label class="switch"><input id="hourlySwitch" type="checkbox"><span class="track"></span><span class="thumb"></span></label></div>
     <div class="row"><span data-i18n="show_history"></span><label class="switch"><input id="historySwitch" type="checkbox"><span class="track"></span><span class="thumb"></span></label></div>
+    <div class="sec-title" data-i18n="units_title"></div>
+    <div id="unitRows"></div>
+    <div class="sec-title" data-i18n="accent"></div>
+    <div class="swatches" id="swatches" role="radiogroup" data-i18n-aria="accent"></div>
     <div class="actions"><button id="closeBtn" class="btn btn-outlined" data-i18n="close"></button></div>
+  </div>
+</div>
+<div id="welcome" class="welcome" role="dialog" aria-modal="true" aria-labelledby="welcomeTitle" hidden>
+  <div class="card welcome-card">
+    <span class="material-icons logo" aria-hidden="true">cloud</span>
+    <h2 id="welcomeTitle" data-i18n="welcome_title"></h2>
+    <p data-i18n="welcome_text"></p>
+    <div class="row">
+      <span data-i18n="dark"></span>
+      <label class="switch"><input id="welcomeDark" type="checkbox"><span class="track"></span><span class="thumb"></span></label>
+    </div>
+    <div class="row">
+      <label for="welcomeLang" data-i18n="language"></label>
+      <select id="welcomeLang"><option value="en">English</option><option value="ru">Русский</option></select>
+    </div>
+    <div id="welcomeUnitRows"></div>
+    <div class="actions"><button id="startBtn" class="btn btn-filled" data-i18n="get_started"></button></div>
   </div>
 </div>
 <script>
@@ -318,42 +369,6 @@
   function load(k) { try { return localStorage.getItem(k); } catch (e) { return null; } }
   function loadJson(k) { try { return JSON.parse(load(k)); } catch (e) { return null; } }
   var I18N = {
-    ru: {
-      title: 'Погода', city: 'Город', search: 'Показать погоду', locate: 'Определить моё местоположение',
-      tab_name: 'По названию', tab_coords: 'По координатам', lat: 'Широта', lon: 'Долгота',
-      now: 'Сейчас', forecast: 'Прогноз на 5 дней', feels: 'Ощущается как', humidity: 'Влажность', wind: 'Ветер',
-      details: 'Подробнее', place_info: 'Данные о местоположении', today: 'Сегодня', your_location: 'Ваше местоположение',
-      coords_label: 'Координаты: {lat}, {lon}',
-      hourly: 'Почасовой прогноз', history: 'История за 30 дней', hist_min: 'Мин.', hist_max: 'Макс.',
-      show_hourly: 'Показывать почасовой прогноз', show_history: 'Показывать историю (30 дней)',
-      stale: 'Данные могут быть устаревшими', precip_day: 'Осадки за день', wind_max: 'Ветер, макс.', gusts_max: 'Порывы, макс.',
-      settings: 'Настройки', dark: 'Тёмная тема', language: 'Язык сайта', search_lang: 'Язык поиска региона', close: 'Закрыть',
-      dew: 'Точка росы', pressure: 'Давление', pressure_surface: 'Давление у земли', cloud: 'Облачность', visibility: 'Видимость',
-      gusts: 'Порывы ветра', direction: 'Направление ветра', precip: 'Осадки', rain: 'Дождь', showers: 'Ливни', snowfall: 'Снегопад',
-      daylight: 'Время суток', day: 'День', night: 'Ночь',
-      air_quality: 'Качество воздуха', uv: 'UV-индекс', ozone: 'Озон', dust: 'Пыль',
-      astronomy: 'Астрономия', moon_phase: 'Фаза луны', illumination: 'Освещённость', sunrise: 'Восход', sunset: 'Закат',
-      moon_0: 'Новолуние', moon_1: 'Растущий серп', moon_2: 'Первая четверть', moon_3: 'Растущая луна',
-      moon_4: 'Полнолуние', moon_5: 'Убывающая луна', moon_6: 'Последняя четверть', moon_7: 'Убывающий серп',
-      country: 'Страна', region: 'Регион', district: 'Район', elevation: 'Высота над уровнем моря', population: 'Население', timezone: 'Часовой пояс',
-      u_kmh: 'км/ч', u_hpa: 'гПа', u_km: 'км', u_m: 'м', u_mm: 'мм', u_cm: 'см', u_ug: 'мкг/м³',
-      compass: 'С,СВ,В,ЮВ,Ю,ЮЗ,З,СЗ',
-      err_empty: 'Введите название города.',
-      err_notfound: 'Город «{city}» не найден. Проверьте написание.',
-      err_coords_invalid: 'Введите широту и долготу числами, например 52.37 и 4.89.',
-      err_lat_range: 'Широта должна быть в диапазоне от −90 до 90.',
-      err_lon_range: 'Долгота должна быть в диапазоне от −180 до 180.',
-      err_offline: 'Нет подключения к интернету. Проверьте соединение и попробуйте снова.',
-      err_server: 'Не удалось получить данные. Попробуйте позже.',
-      err_geo_unsupported: 'Ваш браузер не поддерживает геолокацию.',
-      err_geo_1: 'Доступ к геолокации запрещён. Разрешите его в настройках браузера или введите город вручную.',
-      err_geo_2: 'Не удалось определить местоположение. Введите город вручную.',
-      err_geo_3: 'Превышено время ожидания геолокации. Попробуйте ещё раз.',
-      err_geo_0: 'Ошибка геолокации.',
-      w_clear: 'Ясно', w_mostly_clear: 'Преимущественно ясно', w_partly: 'Переменная облачность', w_overcast: 'Пасмурно',
-      w_fog: 'Туман', w_drizzle: 'Морось', w_fdrizzle: 'Ледяная морось', w_rain: 'Дождь', w_frain: 'Ледяной дождь',
-      w_snow: 'Снег', w_showers: 'Ливень', w_snowshow: 'Снегопад', w_thunder: 'Гроза', w_hail: 'Гроза с градом', w_unknown: 'Нет данных'
-    },
     en: {
       title: 'Weather', city: 'City', search: 'Show weather', locate: 'Use my location',
       tab_name: 'By name', tab_coords: 'By coordinates', lat: 'Latitude', lon: 'Longitude',
@@ -388,17 +403,76 @@
       err_geo_0: 'Geolocation error.',
       w_clear: 'Clear', w_mostly_clear: 'Mostly clear', w_partly: 'Partly cloudy', w_overcast: 'Overcast',
       w_fog: 'Fog', w_drizzle: 'Drizzle', w_fdrizzle: 'Freezing drizzle', w_rain: 'Rain', w_frain: 'Freezing rain',
-      w_snow: 'Snow', w_showers: 'Rain showers', w_snowshow: 'Snow showers', w_thunder: 'Thunderstorm', w_hail: 'Thunderstorm with hail', w_unknown: 'No data'
+      w_snow: 'Snow', w_showers: 'Rain showers', w_snowshow: 'Snow showers', w_thunder: 'Thunderstorm', w_hail: 'Thunderstorm with hail', w_unknown: 'No data',
+      welcome_title: 'Welcome to Weather',
+      welcome_text: 'Forecasts, air quality and astronomy for any place in the world, powered by Open-Meteo. Pick your preferences below — you can change them any time in Settings.',
+      get_started: 'Get Started',
+      units_title: 'Units', unit_temp: 'Temperature', unit_wind: 'Wind speed', unit_pressure: 'Pressure', unit_precip: 'Precipitation',
+      accent: 'Accent color', c_blue: 'Blue', c_green: 'Green', c_purple: 'Purple', c_orange: 'Orange', c_red: 'Red', c_teal: 'Teal',
+      u_ms: 'm/s', u_mph: 'mph', u_kn: 'kn', u_mmhg: 'mmHg', u_inhg: 'inHg', u_in: 'in',
+      updated: 'Updated', cached: '(cached)', coordinates: 'Coordinates', not_available: 'Not available'
+    },
+    ru: {
+      title: 'Погода', city: 'Город', search: 'Показать погоду', locate: 'Определить моё местоположение',
+      tab_name: 'По названию', tab_coords: 'По координатам', lat: 'Широта', lon: 'Долгота',
+      now: 'Сейчас', forecast: 'Прогноз на 5 дней', feels: 'Ощущается как', humidity: 'Влажность', wind: 'Ветер',
+      details: 'Подробнее', place_info: 'Данные о местоположении', today: 'Сегодня', your_location: 'Ваше местоположение',
+      coords_label: 'Координаты: {lat}, {lon}',
+      hourly: 'Почасовой прогноз', history: 'История за 30 дней', hist_min: 'Мин.', hist_max: 'Макс.',
+      show_hourly: 'Показывать почасовой прогноз', show_history: 'Показывать историю (30 дней)',
+      stale: 'Данные могут быть устаревшими', precip_day: 'Осадки за день', wind_max: 'Ветер, макс.', gusts_max: 'Порывы, макс.',
+      settings: 'Настройки', dark: 'Тёмная тема', language: 'Язык сайта', search_lang: 'Язык поиска региона', close: 'Закрыть',
+      dew: 'Точка росы', pressure: 'Давление', pressure_surface: 'Давление у земли', cloud: 'Облачность', visibility: 'Видимость',
+      gusts: 'Порывы ветра', direction: 'Направление ветра', precip: 'Осадки', rain: 'Дождь', showers: 'Ливни', snowfall: 'Снегопад',
+      daylight: 'Время суток', day: 'День', night: 'Ночь',
+      air_quality: 'Качество воздуха', uv: 'UV-индекс', ozone: 'Озон', dust: 'Пыль',
+      astronomy: 'Астрономия', moon_phase: 'Фаза луны', illumination: 'Освещённость', sunrise: 'Восход', sunset: 'Закат',
+      moon_0: 'Новолуние', moon_1: 'Растущий серп', moon_2: 'Первая четверть', moon_3: 'Растущая луна',
+      moon_4: 'Полнолуние', moon_5: 'Убывающая луна', moon_6: 'Последняя четверть', moon_7: 'Убывающий серп',
+      country: 'Страна', region: 'Регион', district: 'Район', elevation: 'Высота над уровнем моря', population: 'Население', timezone: 'Часовой пояс',
+      u_kmh: 'км/ч', u_hpa: 'гПа', u_km: 'км', u_m: 'м', u_mm: 'мм', u_cm: 'см', u_ug: 'мкг/м³',
+      compass: 'С,СВ,В,ЮВ,Ю,ЮЗ,З,СЗ',
+      err_empty: 'Введите название города.',
+      err_notfound: 'Город «{city}» не найден. Проверьте написание.',
+      err_coords_invalid: 'Введите широту и долготу числами, например 52.37 и 4.89.',
+      err_lat_range: 'Широта должна быть в диапазоне от −90 до 90.',
+      err_lon_range: 'Долгота должна быть в диапазоне от −180 до 180.',
+      err_offline: 'Нет подключения к интернету. Проверьте соединение и попробуйте снова.',
+      err_server: 'Не удалось получить данные. Попробуйте позже.',
+      err_geo_unsupported: 'Ваш браузер не поддерживает геолокацию.',
+      err_geo_1: 'Доступ к геолокации запрещён. Разрешите его в настройках браузера или введите город вручную.',
+      err_geo_2: 'Не удалось определить местоположение. Введите город вручную.',
+      err_geo_3: 'Превышено время ожидания геолокации. Попробуйте ещё раз.',
+      err_geo_0: 'Ошибка геолокации.',
+      w_clear: 'Ясно', w_mostly_clear: 'Преимущественно ясно', w_partly: 'Переменная облачность', w_overcast: 'Пасмурно',
+      w_fog: 'Туман', w_drizzle: 'Морось', w_fdrizzle: 'Ледяная морось', w_rain: 'Дождь', w_frain: 'Ледяной дождь',
+      w_snow: 'Снег', w_showers: 'Ливень', w_snowshow: 'Снегопад', w_thunder: 'Гроза', w_hail: 'Гроза с градом', w_unknown: 'Нет данных',
+      welcome_title: 'Добро пожаловать в «Погоду»',
+      welcome_text: 'Прогноз погоды, качество воздуха и астрономия для любой точки мира на базе Open-Meteo. Выберите настройки — их можно изменить в любой момент.',
+      get_started: 'Начать',
+      units_title: 'Единицы измерения', unit_temp: 'Температура', unit_wind: 'Скорость ветра', unit_pressure: 'Давление', unit_precip: 'Осадки',
+      accent: 'Цвет акцента', c_blue: 'Синий', c_green: 'Зелёный', c_purple: 'Фиолетовый', c_orange: 'Оранжевый', c_red: 'Красный', c_teal: 'Бирюзовый',
+      u_ms: 'м/с', u_mph: 'миль/ч', u_kn: 'уз', u_mmhg: 'мм рт. ст.', u_inhg: 'дюйм рт. ст.', u_in: 'дюйм',
+      uo_kn: 'узлы', uo_inhg: 'дюймы рт. ст.', uo_in: 'дюймы',
+      updated: 'Обновлено', cached: '(из кэша)', coordinates: 'Координаты', not_available: 'Нет данных'
     }
   };
   var LOCALES = { ru: 'ru-RU', en: 'en-GB' };
   var showHourly = load('showHourly') !== '0';
   var showHistory = load('showHistory') === '1';
   var SEARCH_LANGS = ['ru', 'en', 'de', 'fr', 'es', 'it', 'pt', 'tr', 'zh', 'ja'];
-  var lang = load('lang') === 'en' ? 'en' : 'ru';
-  var searchLang = SEARCH_LANGS.indexOf(load('searchLang')) >= 0 ? load('searchLang') : 'ru';
+  function detectLang() {
+    var l = (navigator.languages && navigator.languages[0]) || navigator.language || 'en';
+    return /^ru/i.test(l) ? 'ru' : 'en';
+  }
+  var savedLang = load('lang');
+  var lang = savedLang === 'ru' || savedLang === 'en' ? savedLang : detectLang();
+  if (savedLang !== lang) store('lang', lang);
+  var savedSearchLang = load('searchLang');
+  var searchLang = SEARCH_LANGS.indexOf(savedSearchLang) >= 0 ? savedSearchLang : detectLang();
+  if (savedSearchLang !== searchLang) store('searchLang', searchLang);
   function t(key, params) {
-    var s = (I18N[lang][key] !== undefined ? I18N[lang][key] : I18N.ru[key]) || key;
+    var s = (I18N[lang][key] !== undefined ? I18N[lang][key] : I18N.en[key]) || key;
     if (params) for (var p in params) s = s.replace('{' + p + '}', params[p]);
     return s;
   }
@@ -433,7 +507,54 @@
     return { emoji: ['🌑', '🌒', '🌓', '🌔', '🌕', '🌖', '🌗', '🌘'][idx], key: 'moon_' + idx, illum: illum };
   }
   function round(n) { return Math.round(n); }
-  function fmtTemp(n) { var r = round(n); return (r > 0 ? '+' : '') + r + '°'; }
+  function mul(k) { return function (v) { return v * k; }; }
+  var UNIT_KINDS = ['temp', 'wind', 'pressure', 'precip'];
+  var UNIT_DEFS = {
+    temp: { key: 'unitTemp', def: 'c', opts: {
+      c: { to: mul(1), label: '°C', letter: 'C', digits: 0 },
+      f: { to: function (v) { return v * 9 / 5 + 32; }, label: '°F', letter: 'F', digits: 0 }
+    } },
+    wind: { key: 'unitWind', def: 'kmh', opts: {
+      kmh: { to: mul(1), labelKey: 'u_kmh', digits: 0 },
+      ms: { to: mul(1 / 3.6), labelKey: 'u_ms', digits: 1 },
+      mph: { to: mul(0.621371), labelKey: 'u_mph', digits: 0 },
+      kn: { to: mul(0.539957), labelKey: 'u_kn', digits: 0 }
+    } },
+    pressure: { key: 'unitPressure', def: 'hpa', opts: {
+      hpa: { to: mul(1), labelKey: 'u_hpa', digits: 0 },
+      mmhg: { to: mul(0.750062), labelKey: 'u_mmhg', digits: 0 },
+      inhg: { to: mul(0.02953), labelKey: 'u_inhg', digits: 2 }
+    } },
+    precip: { key: 'unitPrecip', def: 'mm', opts: {
+      mm: { to: mul(1), labelKey: 'u_mm', digits: 1 },
+      'in': { to: mul(1 / 25.4), labelKey: 'u_in', digits: 2 }
+    } }
+  };
+  var units = {};
+  UNIT_KINDS.forEach(function (k) {
+    var d = UNIT_DEFS[k], v = load(d.key);
+    units[k] = v && Object.prototype.hasOwnProperty.call(d.opts, v) ? v : d.def;
+  });
+  function unitOpt(kind) { return UNIT_DEFS[kind].opts[units[kind]]; }
+  function conv(kind, v) { return unitOpt(kind).to(v); }
+  function unitLabel(kind) { var o = unitOpt(kind); return o.label || t(o.labelKey); }
+  function unitOptionLabel(kind, key) { var o = UNIT_DEFS[kind].opts[key]; return o.label || I18N[lang]['uo_' + key] || t(o.labelKey); }
+  function measure(kind) {
+    return function (v) {
+      var o = unitOpt(kind);
+      return num(Number(o.to(v).toFixed(o.digits))) + ' ' + unitLabel(kind);
+    };
+  }
+  function fmtSnow(v) {
+    var inch = units.precip === 'in';
+    return num(Number((inch ? v / 2.54 : v).toFixed(inch ? 2 : 1))) + ' ' + (inch ? t('u_in') : t('u_cm'));
+  }
+  function fmtTemp(n) { var r = round(conv('temp', n)); return (r > 0 ? '+' : '') + r + '°'; }
+  function fmtTempU(n) { return fmtTemp(n) + unitOpt('temp').letter; }
+  function dataTs(data) {
+    var c = data && data.current, ms = c && c.time ? Date.parse(c.time + 'Z') : NaN;
+    return isNaN(ms) || typeof data.utc_offset_seconds !== 'number' ? Date.now() : ms - data.utc_offset_seconds * 1000;
+  }
   function num(n) { return n.toLocaleString(LOCALES[lang]); }
   function compass(deg) { return t('compass').split(',')[Math.round(deg / 45) % 8]; }
   function orDash(v, fn) { return v === null || v === undefined ? '—' : fn(v); }
@@ -593,7 +714,7 @@
         el('span', 'material-icons', w.i),
         el('div', 'hour-t', orDash(h.temperature_2m[i], fmtTemp)),
         el('div', 'hour-p', p > 0 ? p + '%' : ''),
-        el('div', 'hour-w', orDash(h.wind_speed_10m && h.wind_speed_10m[i], function (v) { return round(v) + ' ' + t('u_kmh'); }))
+        el('div', 'hour-w', orDash(h.wind_speed_10m && h.wind_speed_10m[i], measure('wind')))
       );
       box.appendChild(item);
     }
@@ -620,7 +741,7 @@
     });
     $('histFrom').textContent = fmtDateShort(days[0].date);
     $('histTo').textContent = fmtDateShort(days[days.length - 1].date);
-    $('histSum').textContent = t('hist_min') + ' ' + fmtTemp(lo) + 'C · ' + t('hist_max') + ' ' + fmtTemp(hi) + 'C';
+    $('histSum').textContent = t('hist_min') + ' ' + fmtTempU(lo) + ' · ' + t('hist_max') + ' ' + fmtTempU(hi);
   }
   function render() {
     if (!state) return;
@@ -628,28 +749,28 @@
     var w = describeWeather(c.weather_code, c.is_day);
     $('place').textContent = placeLabel();
     $('nowIcon').textContent = w.i;
-    $('nowTemp').textContent = fmtTemp(c.temperature_2m) + 'C';
+    $('nowTemp').textContent = fmtTempU(c.temperature_2m);
     $('nowDesc').textContent = t(w.k);
-    $('nowFeels').textContent = t('feels') + ' ' + fmtTemp(c.apparent_temperature) + 'C';
+    $('nowFeels').textContent = t('feels') + ' ' + fmtTempU(c.apparent_temperature);
     var isDay = c.is_day === 1;
     fillTiles($('tiles'), [
       { i: 'water_drop', v: orDash(c.relative_humidity_2m, withUnit('%')), l: t('humidity') },
-      { i: 'air', v: orDash(c.wind_speed_10m, withUnit(t('u_kmh'))), l: t('wind') },
-      { i: 'waves', v: orDash(c.wind_gusts_10m, withUnit(t('u_kmh'))), l: t('gusts') },
+      { i: 'air', v: orDash(c.wind_speed_10m, measure('wind')), l: t('wind') },
+      { i: 'waves', v: orDash(c.wind_gusts_10m, measure('wind')), l: t('gusts') },
       { i: 'explore', v: orDash(c.wind_direction_10m, function (v) { return round(v) + '° (' + compass(v) + ')'; }), l: t('direction') },
-      { i: 'speed', v: orDash(c.pressure_msl, withUnit(t('u_hpa'))), l: t('pressure') },
-      { i: 'terrain', v: orDash(c.surface_pressure, withUnit(t('u_hpa'))), l: t('pressure_surface') },
-      { i: 'opacity', v: orDash(c.dew_point_2m, function (v) { return fmtTemp(v) + 'C'; }), l: t('dew') },
+      { i: 'speed', v: orDash(c.pressure_msl, measure('pressure')), l: t('pressure') },
+      { i: 'terrain', v: orDash(c.surface_pressure, measure('pressure')), l: t('pressure_surface') },
+      { i: 'opacity', v: orDash(c.dew_point_2m, fmtTempU), l: t('dew') },
       { i: 'cloud', v: orDash(c.cloud_cover, withUnit('%')), l: t('cloud') },
       { i: 'visibility', v: orDash(c.visibility, function (v) { return withUnit(t('u_km'), 1)(v / 1000); }), l: t('visibility') },
-      { i: 'grain', v: orDash(c.precipitation, withUnit(t('u_mm'), 1)), l: t('precip') },
-      { i: 'beach_access', v: orDash(c.rain, withUnit(t('u_mm'), 1)), l: t('rain') },
-      { i: 'shower', v: orDash(c.showers, withUnit(t('u_mm'), 1)), l: t('showers') },
-      { i: 'ac_unit', v: orDash(c.snowfall, withUnit(t('u_cm'), 1)), l: t('snowfall') },
+      { i: 'grain', v: orDash(c.precipitation, measure('precip')), l: t('precip') },
+      { i: 'beach_access', v: orDash(c.rain, measure('precip')), l: t('rain') },
+      { i: 'shower', v: orDash(c.showers, measure('precip')), l: t('showers') },
+      { i: 'ac_unit', v: orDash(c.snowfall, fmtSnow), l: t('snowfall') },
       { i: isDay ? 'light_mode' : 'dark_mode', v: orDash(c.is_day, function () { return isDay ? t('day') : t('night'); }), l: t('daylight') },
-      { i: 'invert_colors', v: orDash(d.precipitation_sum && d.precipitation_sum[0], withUnit(t('u_mm'), 1)), l: t('precip_day') },
-      { i: 'trending_up', v: orDash(d.wind_speed_10m_max && d.wind_speed_10m_max[0], withUnit(t('u_kmh'))), l: t('wind_max') },
-      { i: 'flash_on', v: orDash(d.wind_gusts_10m_max && d.wind_gusts_10m_max[0], withUnit(t('u_kmh'))), l: t('gusts_max') }
+      { i: 'invert_colors', v: orDash(d.precipitation_sum && d.precipitation_sum[0], measure('precip')), l: t('precip_day') },
+      { i: 'trending_up', v: orDash(d.wind_speed_10m_max && d.wind_speed_10m_max[0], measure('wind')), l: t('wind_max') },
+      { i: 'flash_on', v: orDash(d.wind_gusts_10m_max && d.wind_gusts_10m_max[0], measure('wind')), l: t('gusts_max') }
     ]);
     var a = state.air;
     $('airCard').hidden = !a;
@@ -676,17 +797,24 @@
       { i: 'brightness_5', v: timeOf(d.sunrise && d.sunrise[0]), l: t('sunrise') },
       { i: 'nights_stay', v: timeOf(d.sunset && d.sunset[0]), l: t('sunset') }
     ]);
-    var p = state.place;
-    $('placeBtn').hidden = !p;
+    var p = state.place, fc = state.data;
     var pg = $('placeGrid');
     pg.innerHTML = '';
+    $('placeBtn').hidden = false;
     if (p) {
+      var elev = typeof p.elevation === 'number' ? p.elevation : fc.elevation;
       if (p.country) pg.appendChild(infoItem(t('country'), p.country));
       if (p.admin1) pg.appendChild(infoItem(t('region'), p.admin1));
       if (p.admin2) pg.appendChild(infoItem(t('district'), p.admin2));
-      if (typeof p.elevation === 'number') pg.appendChild(infoItem(t('elevation'), num(round(p.elevation)) + ' ' + t('u_m')));
+      if (typeof elev === 'number') pg.appendChild(infoItem(t('elevation'), num(round(elev)) + ' ' + t('u_m')));
       if (p.population) pg.appendChild(infoItem(t('population'), num(p.population)));
-      if (p.timezone) pg.appendChild(infoItem(t('timezone'), p.timezone));
+      if (p.timezone || fc.timezone) pg.appendChild(infoItem(t('timezone'), p.timezone || fc.timezone));
+    } else {
+      pg.appendChild(infoItem(t('coordinates'), Number(state.lat).toFixed(4) + ', ' + Number(state.lon).toFixed(4)));
+      pg.appendChild(infoItem(t('country'), t('not_available')));
+      pg.appendChild(infoItem(t('region'), t('not_available')));
+      if (typeof fc.elevation === 'number') pg.appendChild(infoItem(t('elevation'), num(round(fc.elevation)) + ' ' + t('u_m')));
+      if (fc.timezone) pg.appendChild(infoItem(t('timezone'), fc.timezone));
     }
     var box = $('forecast');
     box.innerHTML = '';
@@ -709,6 +837,12 @@
     });
     $('staleBadge').hidden = !state.stale;
     if (state.ts) $('staleBadge').title = new Date(state.ts).toLocaleString(LOCALES[lang]);
+    var upd = $('updated');
+    upd.hidden = !state.ts;
+    if (state.ts) {
+      var updTime = new Date(state.ts).toLocaleTimeString(LOCALES[lang], { hour: '2-digit', minute: '2-digit' });
+      upd.textContent = t('updated') + ': ' + updTime + (state.stale ? ' ' + t('cached') : '');
+    }
     renderHourly();
     renderHistory();
     var res = $('results');
@@ -738,7 +872,7 @@
     return fetchAll(place.lat, place.lon).then(function (r) {
       return {
         kind: 'city', label: place.label, place: place.raw, lat: place.lat, lon: place.lon,
-        data: r.data, air: r.air, history: r.history, stale: r.stale, ts: Date.now(),
+        data: r.data, air: r.air, history: r.history, stale: r.stale, ts: r.stale ? dataTs(r.data) : Date.now(),
         persist: function () {
           store('lastPlace', JSON.stringify(place));
           store('lastCity', (place.raw && place.raw.name) || place.label);
@@ -764,7 +898,7 @@
         return fetchAll(c.latitude, c.longitude).then(function (r) {
           return {
             kind: kind, label: null, coords: { lat: c.latitude, lon: c.longitude }, place: null, lat: c.latitude, lon: c.longitude,
-            data: r.data, air: r.air, history: r.history, stale: r.stale, ts: Date.now(),
+            data: r.data, air: r.air, history: r.history, stale: r.stale, ts: r.stale ? dataTs(r.data) : Date.now(),
             persist: function () {
               store('lastLocation', JSON.stringify({ lat: c.latitude, lon: c.longitude }));
               store('lastSearchType', kind);
@@ -879,12 +1013,103 @@
     document.querySelectorAll('[data-i18n]').forEach(function (el) { el.textContent = t(el.dataset.i18n); });
     document.querySelectorAll('[data-i18n-aria]').forEach(function (el) { el.setAttribute('aria-label', t(el.dataset.i18nAria)); });
     $('langSelect').value = lang;
+    $('welcomeLang').value = lang;
+    labelUnitSelects();
+    labelSwatches();
     if (errState) showError(errState.key, errState.params);
     render();
   }
-  function setTheme(dark) {
+  var themeManual = false;
+  function systemDark() { return !!(window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches); }
+  function isThemeManual() { var s = load('theme'); return themeManual || s === 'dark' || s === 'light'; }
+  function applyTheme(dark) {
     document.body.classList.toggle('dark-theme', dark);
-    store('theme', dark ? 'dark' : 'light');
+    $('darkSwitch').checked = dark;
+    $('welcomeDark').checked = dark;
+    applyAccent();
+  }
+  function setTheme(dark) { themeManual = true; applyTheme(dark); store('theme', dark ? 'dark' : 'light'); }
+  var ACCENTS = [
+    { id: 'blue', c: '#1976D2', d: '#64B5F6' }, { id: 'green', c: '#388E3C', d: '#81C784' },
+    { id: 'purple', c: '#7B1FA2', d: '#BA68C8' }, { id: 'orange', c: '#F57C00', d: '#FFB74D' },
+    { id: 'red', c: '#D32F2F', d: '#E57373' }, { id: 'teal', c: '#00796B', d: '#4DB6AC' }
+  ];
+  var accent = (function () {
+    var s = load('accentColor');
+    return ACCENTS.some(function (a) { return a.c === s; }) ? s : ACCENTS[0].c;
+  })();
+  function hexRgb(h) { return [1, 3, 5].map(function (i) { return parseInt(h.substr(i, 2), 16); }); }
+  function applyAccent() {
+    var a = ACCENTS.filter(function (x) { return x.c === accent; })[0] || ACCENTS[0];
+    var dark = document.body.classList.contains('dark-theme');
+    var shown = dark ? a.d : a.c, s = document.body.style;
+    s.setProperty('--primary', a.c);
+    s.setProperty('--primary-dark', 'rgb(' + hexRgb(a.c).map(function (x) { return Math.round(x * 0.88); }).join(',') + ')');
+    s.setProperty('--accent', shown);
+    s.setProperty('--hover', 'rgba(' + hexRgb(shown).join(',') + ',' + (dark ? 0.12 : 0.08) + ')');
+    s.setProperty('--track-on', 'rgba(' + hexRgb(a.c).join(',') + ',.5)');
+    var meta = document.querySelector('meta[name="theme-color"]');
+    if (meta) meta.setAttribute('content', a.c);
+    document.querySelectorAll('.swatch').forEach(function (b) { b.setAttribute('aria-checked', b.dataset.color === a.c); });
+  }
+  function setAccent(c) { accent = c; store('accentColor', c); applyAccent(); }
+  function buildSwatches() {
+    var box = $('swatches');
+    ACCENTS.forEach(function (a) {
+      var b = document.createElement('button');
+      b.type = 'button'; b.className = 'swatch'; b.dataset.color = a.c; b.dataset.id = a.id;
+      b.setAttribute('role', 'radio');
+      b.style.setProperty('--sw', a.c);
+      b.appendChild(el('span', 'material-icons', 'check'));
+      b.addEventListener('click', function () { setAccent(a.c); });
+      box.appendChild(b);
+    });
+  }
+  function labelSwatches() {
+    document.querySelectorAll('.swatch').forEach(function (b) {
+      b.title = t('c_' + b.dataset.id);
+      b.setAttribute('aria-label', t('c_' + b.dataset.id));
+    });
+  }
+  var unitSelects = [];
+  function buildUnitSelects() {
+    ['unitRows', 'welcomeUnitRows'].forEach(function (boxId) {
+      UNIT_KINDS.forEach(function (kind) {
+        var row = el('div', 'row'), lab = document.createElement('label'), sel = document.createElement('select');
+        sel.id = boxId + '-' + kind;
+        lab.htmlFor = sel.id;
+        Object.keys(UNIT_DEFS[kind].opts).forEach(function (k) {
+          var o = document.createElement('option'); o.value = k; sel.appendChild(o);
+        });
+        sel.addEventListener('change', function () { setUnit(kind, sel.value); });
+        row.append(lab, sel);
+        $(boxId).appendChild(row);
+        unitSelects.push({ kind: kind, sel: sel, lab: lab });
+      });
+    });
+  }
+  function labelUnitSelects() {
+    unitSelects.forEach(function (u) {
+      u.lab.textContent = t('unit_' + u.kind);
+      Array.prototype.forEach.call(u.sel.options, function (o) { o.textContent = unitOptionLabel(u.kind, o.value); });
+      u.sel.value = units[u.kind];
+    });
+  }
+  function setUnit(kind, v) { units[kind] = v; store(UNIT_DEFS[kind].key, v); labelUnitSelects(); render(); }
+  function openWelcome() {
+    $('welcome').hidden = false;
+    document.querySelector('.container').inert = true;
+    $('modal').inert = true;
+    document.body.style.overflow = 'hidden';
+    $('startBtn').focus();
+  }
+  function closeWelcome() {
+    store('onboarded', '1');
+    $('welcome').hidden = true;
+    document.querySelector('.container').inert = false;
+    $('modal').inert = false;
+    document.body.style.overflow = '';
+    $('settingsBtn').focus();
   }
   document.querySelectorAll('.btn, .icon-btn, .tab').forEach(function (btn) {
     btn.addEventListener('click', function (e) {
@@ -912,7 +1137,11 @@
   modal.addEventListener('click', function (e) { if (e.target === modal) closeModal(); });
   document.addEventListener('keydown', function (e) { if (e.key === 'Escape' && modal.classList.contains('open')) closeModal(); });
   $('darkSwitch').addEventListener('change', function (e) { setTheme(e.target.checked); });
-  $('langSelect').addEventListener('change', function (e) { lang = e.target.value; store('lang', lang); applyLang(); });
+  function setLang(v) { lang = v === 'ru' ? 'ru' : 'en'; store('lang', lang); applyLang(); }
+  $('langSelect').addEventListener('change', function (e) { setLang(e.target.value); });
+  $('welcomeLang').addEventListener('change', function (e) { setLang(e.target.value); });
+  $('welcomeDark').addEventListener('change', function (e) { setTheme(e.target.checked); });
+  $('startBtn').addEventListener('click', closeWelcome);
   $('searchLangSelect').addEventListener('change', function (e) { searchLang = e.target.value; store('searchLang', searchLang); cancelSuggest(); });
   $('hourlySwitch').addEventListener('change', function (e) { showHourly = e.target.checked; store('showHourly', showHourly ? '1' : '0'); render(); });
   $('historySwitch').addEventListener('change', function (e) {
@@ -935,15 +1164,25 @@
     var s = state;
     run(function () {
       return fetchAll(s.lat, s.lon).then(function (r) {
-        return Object.assign({}, s, { data: r.data, air: r.air, history: r.history || s.history, stale: r.stale, ts: Date.now() });
+        return Object.assign({}, s, { data: r.data, air: r.air, history: r.history || s.history, stale: r.stale, ts: r.stale ? dataTs(r.data) : Date.now() });
       });
     }, { silent: true });
   }
-  $('darkSwitch').checked = document.body.classList.contains('dark-theme');
+  buildUnitSelects();
+  buildSwatches();
+  applyTheme(isThemeManual() ? load('theme') === 'dark' : systemDark());
+  (function () {
+    if (!window.matchMedia) return;
+    var mq = window.matchMedia('(prefers-color-scheme: dark)');
+    var onChange = function (e) { if (!isThemeManual()) applyTheme(e.matches); };
+    if (mq.addEventListener) mq.addEventListener('change', onChange);
+    else if (mq.addListener) mq.addListener(onChange);
+  })();
   $('hourlySwitch').checked = showHourly;
   $('historySwitch').checked = showHistory;
   $('searchLangSelect').value = searchLang;
   applyLang();
+  if (!load('onboarded')) openWelcome();
   var savedCity = load('lastCity');
   var type = load('lastSearchType');
   var savedPlace = loadJson('lastPlace');
