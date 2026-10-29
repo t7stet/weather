@@ -1,6 +1,6 @@
 'use strict';
 
-const CACHE_VERSION = 'v2';
+const CACHE_VERSION = 'v3';
 const STATIC_CACHE = 'weather-static-' + CACHE_VERSION;
 const API_CACHE = 'weather-api-' + CACHE_VERSION;
 const API_CACHE_LIMIT = 30;
@@ -8,6 +8,9 @@ const API_CACHE_LIMIT = 30;
 const PRECACHE = [
   './',
   './index.html',
+  './styles.css',
+  './i18n.js',
+  './app.js',
   './manifest.json',
   'https://fonts.googleapis.com/css2?family=Roboto:wght@300;400;500&display=swap',
   'https://fonts.googleapis.com/icon?family=Material+Icons'
