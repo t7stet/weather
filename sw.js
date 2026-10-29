@@ -1,6 +1,6 @@
 'use strict';
 
-const CACHE_VERSION = 'v3';
+const CACHE_VERSION = 'v4';
 const STATIC_CACHE = 'weather-static-' + CACHE_VERSION;
 const API_CACHE = 'weather-api-' + CACHE_VERSION;
 const API_CACHE_LIMIT = 30;
